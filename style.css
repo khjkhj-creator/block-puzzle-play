@@ -39,7 +39,7 @@ html body{background:radial-gradient(ellipse at 5% 10%,rgba(85,142,124,.13),tran
  .board-wrap{grid-column:1;grid-row:2;width:min(300px,calc((100svh - 250px - env(safe-area-inset-bottom,0px))/2),calc(100vw - 112px));justify-self:center}
  #board{border-color:#3c565c;box-shadow:0 10px 35px rgba(0,0,0,.2),0 0 0 1px rgba(181,231,203,.025)}
  .mobile-controls{display:contents}
- .mobile-controls .drop-button{grid-column:2;grid-row:2;position:relative;top:calc(72% - 34px);align-self:start;justify-self:center;width:68px;height:68px;min-height:68px;padding:0;border-radius:50%;font-size:12px;line-height:1.45;background:linear-gradient(145deg,#d0f6a8,#a8da7b);color:var(--mint-ink);border:1px solid #d6f6b7;box-shadow:0 5px 18px rgba(0,0,0,.25);touch-action:none}
+ .mobile-controls .drop-button{grid-column:2;grid-row:2;position:relative;top:calc(82% - 34px);align-self:start;justify-self:center;width:68px;height:68px;min-height:68px;padding:0;border-radius:50%;font-size:12px;line-height:1.45;background:linear-gradient(145deg,#d0f6a8,#a8da7b);color:var(--mint-ink);border:1px solid #d6f6b7;box-shadow:0 5px 18px rgba(0,0,0,.25);touch-action:none}
  .mobile-hint{grid-column:1/-1;grid-row:3;align-self:center;font-size:10px;margin:0}
  .mobile-controls .mobile-pause{grid-column:1/-1;grid-row:4;justify-self:end;width:104px;height:44px;min-height:44px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
 }
