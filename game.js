@@ -1,9 +1,9 @@
 'use strict';
-const COLS=10,ROWS=20,CELL=30,STAGES=[{goal:10,start:2,rise:20000},{goal:15,start:4,rise:18000},{goal:20,start:6,rise:16000}],FALL=700;
+const COLS=10,ROWS=20,CELL=30,STAGES=[{goal:10,start:2,rise:20000},{goal:15,start:4,rise:18000},{goal:20,start:6,rise:16000}],FALL=700,LOCK_DELAY=1500;
 const SHAPES={I:[[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],O:[[1,1],[1,1]],T:[[0,1,0],[1,1,1],[0,0,0]],S:[[0,1,1],[1,1,0],[0,0,0]],Z:[[1,1,0],[0,1,1],[0,0,0]],J:[[1,0,0],[1,1,1],[0,0,0]],L:[[0,0,1],[1,1,1],[0,0,0]]};
 const COLORS={I:'#83d6e6',O:'#ead780',T:'#b7a2e4',S:'#9ad4a3',Z:'#e58f93',J:'#8daee7',L:'#e8b187',G:'#526676'};
 const $=id=>document.getElementById(id),canvas=$('board'),ctx=canvas.getContext('2d'),preview=$('next').getContext('2d');
-let board,active=null,nextType,bag=[],stage=1,stageLines=0,totalLines=0,score=0,state='ready',fallClock=0,riseClock=0,last=0,toastClock=0;
+let board,active=null,nextType,bag=[],stage=1,stageLines=0,totalLines=0,score=0,state='ready',fallClock=0,lockClock=0,riseClock=0,last=0,toastClock=0;
 function emptyBoard(){return Array.from({length:ROWS},()=>Array(COLS).fill(null));}
 function refillBag(){bag=Object.keys(SHAPES);for(let i=bag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bag[i],bag[j]]=[bag[j],bag[i]];}}
 function takeType(){if(!bag.length)refillBag();return bag.pop();}
@@ -11,7 +11,7 @@ function makePiece(type){return {type,matrix:SHAPES[type].map(row=>[...row]),x:M
 function garbageRow(previousHole=-1){let hole=Math.floor(Math.random()*COLS);if(stage>1&&hole===previousHole)hole=(hole+1+Math.floor(Math.random()*(COLS-1)))%COLS;return {row:Array.from({length:COLS},(_,x)=>x===hole?null:'G'),hole};}
 function fillStartingGarbage(){let hole=-1;for(let i=0;i<STAGES[stage-1].start;i++){const result=garbageRow(hole);board[ROWS-1-i]=result.row;hole=result.hole;}}
 function collides(matrix,x,y){return matrix.some((row,dy)=>row.some((filled,dx)=>filled&&(x+dx<0||x+dx>=COLS||y+dy>=ROWS||(y+dy>=0&&board[y+dy][x+dx]))));}
-function spawnPiece(){active=makePiece(nextType);nextType=takeType();fallClock=0;if(collides(active.matrix,active.x,active.y))finish(false);}
+function spawnPiece(){active=makePiece(nextType);nextType=takeType();fallClock=0;lockClock=0;if(collides(active.matrix,active.x,active.y))finish(false);}
 function startStage(){board=emptyBoard();fillStartingGarbage();stageLines=0;fallClock=0;riseClock=0;toastClock=0;$('toast').textContent='';state='playing';spawnPiece();updateHUD();syncOverlay();canvas.focus();}
 function startGame(){stopHeldControls();stage=1;score=0;totalLines=0;bag=[];nextType=takeType();startStage();}
 function nextStage(){if(state!=='stageClear')return;stage++;startStage();}
@@ -20,14 +20,14 @@ function syncOverlay(){const content={ready:['스테이지 챌린지','틈새를
 function finish(won){stopHeldControls();state=won?'won':'lost';updateHUD();syncOverlay();}
 function move(dx){if(state!=='playing'||!active)return;if(!collides(active.matrix,active.x+dx,active.y)){active.x+=dx;return true;}return false;}
 function rotate(direction=1){if(state!=='playing'||!active)return false;const matrix=active.matrix,n=matrix.length,rotated=Array.from({length:n},(_,y)=>Array.from({length:n},(_,x)=>direction===1?matrix[n-1-x][y]:matrix[x][n-1-y]));for(const kick of [0,-1,1,-2,2]){if(!collides(rotated,active.x+kick,active.y)){active.matrix=rotated;active.x+=kick;return true;}}return false;}
-function softDrop(manual=false){if(state!=='playing'||!active)return;if(!collides(active.matrix,active.x,active.y+1)){active.y++;if(manual){score++;updateHUD();}return true;}lockPiece();return false;}
+function softDrop(manual=false){if(state!=='playing'||!active)return;if(!collides(active.matrix,active.x,active.y+1)){active.y++;if(manual){score++;updateHUD();}return true;}return false;}
 function hardDrop(){if(state!=='playing'||!active)return;let steps=0;while(!collides(active.matrix,active.x,active.y+1)){active.y++;steps++;}score+=steps*2;lockPiece();}
 function clearLines(){let removed=0;for(let y=ROWS-1;y>=0;y--){if(board[y].every(Boolean)){board.splice(y,1);board.unshift(Array(COLS).fill(null));removed++;y++;}}return removed;}
 function lockPiece(){boardGesture=null;if(state!=='playing')return;let above=false;active.matrix.forEach((row,dy)=>row.forEach((filled,dx)=>{if(filled){const y=active.y+dy;if(y<0)above=true;else board[y][active.x+dx]=active.type;}}));if(above){finish(false);return;}const count=clearLines();if(count){stageLines+=count;totalLines+=count;score+=([0,100,300,500,800][Math.min(count,4)]+Math.max(0,count-4)*200)*stage;$('toast').textContent=count===4?'4줄! 한 번에 시원하게':`${count}줄 제거!`;toastClock=1100;}
  if(stageLines>=STAGES[stage-1].goal){active=null;if(stage===STAGES.length)finish(true);else{state='stageClear';updateHUD();syncOverlay();}return;}spawnPiece();updateHUD();}
 function raiseGarbage(){if(state!=='playing')return false;if(board[0].some(Boolean)){finish(false);return false;}board.shift();board.push(garbageRow().row);if(active){let pushes=0;while(collides(active.matrix,active.x,active.y)&&pushes<ROWS){active.y--;pushes++;}if(active.matrix.some((row,dy)=>row.some(filled=>filled&&active.y+dy<0))){finish(false);return false;}}return true;}
 function pause(){stopHeldControls();if(state==='playing')state='paused';else if(state==='paused')state='playing';else return;fallClock=0;updateHUD();syncOverlay();if(state==='playing')canvas.focus();}
-function update(dt){if(state!=='playing')return;toastClock=Math.max(0,toastClock-dt);if(!toastClock)$('toast').textContent='';riseClock+=dt;while(riseClock>=STAGES[stage-1].rise&&state==='playing'){riseClock-=STAGES[stage-1].rise;raiseGarbage();}if(state!=='playing')return;fallClock+=dt;while(state==='playing'&&fallClock>=(boardGesture?.softDropping?60:FALL)){const fast=Boolean(boardGesture?.softDropping);fallClock-=fast?60:FALL;softDrop(fast);}}
+function update(dt){if(state!=='playing')return;toastClock=Math.max(0,toastClock-dt);if(!toastClock)$('toast').textContent='';riseClock+=dt;while(riseClock>=STAGES[stage-1].rise&&state==='playing'){riseClock-=STAGES[stage-1].rise;raiseGarbage();}if(state!=='playing')return;const grounded=active&&collides(active.matrix,active.x,active.y+1);if(grounded){lockClock+=dt;if(lockClock>=LOCK_DELAY){lockPiece();return;}}else lockClock=0;fallClock+=dt;while(state==='playing'&&fallClock>=(boardGesture?.softDropping?60:FALL)){const fast=Boolean(boardGesture?.softDropping);fallClock-=fast?60:FALL;softDrop(fast);}}
 function block(context,x,y,size,type,ghost=false){context.save();context.translate(x,y);if(ghost){context.strokeStyle=COLORS[type];context.globalAlpha=.4;context.lineWidth=1.5;context.strokeRect(3,3,size-6,size-6);}else{const g=context.createLinearGradient(0,0,size,size);g.addColorStop(0,COLORS[type]);g.addColorStop(1,type==='G'?'#364653':COLORS[type]);context.fillStyle=g;context.beginPath();context.roundRect(1.5,1.5,size-3,size-3,3);context.fill();context.fillStyle='rgba(255,255,255,.2)';context.fillRect(5,4,size-10,2);context.fillStyle='rgba(0,0,0,.12)';context.fillRect(4,size-6,size-8,2);if(type==='G'){context.strokeStyle='rgba(182,204,215,.16)';context.beginPath();context.moveTo(5,size-6);context.lineTo(size-6,5);context.stroke();}}context.restore();}
 function drawPiece(piece,ghost=false){piece.matrix.forEach((row,dy)=>row.forEach((v,dx)=>{if(v&&piece.y+dy>=0)block(ctx,(piece.x+dx)*CELL,(piece.y+dy)*CELL,CELL,piece.type,ghost);}));}
 const boardBackground=ctx.createLinearGradient(0,0,0,600);boardBackground.addColorStop(0,'#101b24');boardBackground.addColorStop(1,'#14242b');
